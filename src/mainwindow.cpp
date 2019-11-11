@@ -36,6 +36,8 @@
 #include <QStandardPaths>
 #include <QDirIterator>
 #include <QActionGroup>
+#include <QDebug>
+#include <QStandardPaths>
 #include <cmath>
 
 #include <qscrollbar.h>
@@ -60,6 +62,9 @@
 
 // Logging
 #include "logmodel.h"
+
+// Scripting
+#include "scripting.h"
 
 #include "util.h"
 
@@ -119,6 +124,22 @@ QString prettifyHex(const QByteArray &data)
 }
 
 
+static MainWindow *mainWinPtr = Q_NULLPTR;
+
+void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QString &msg)
+{
+    if(strncmp(context.category, "js", 2)==0)
+    {
+        mainWinPtr->jsConsoleMessage(context, msg);
+        return;
+    }
+
+    LogModel::getInstance()->logWithoutFilter(msg);
+
+    if(type==QtFatalMsg)
+        abort();
+}
+
 MainWindow::MainWindow(ICaptureDevice *captureDevice)
     : QMainWindow(Q_NULLPTR, Qt::WindowFlags())
     , m_firstPacket(true)
@@ -126,6 +147,9 @@ MainWindow::MainWindow(ICaptureDevice *captureDevice)
     , m_captureDevice(captureDevice)
     , m_controller(Q_NULLPTR)
 {
+    mainWinPtr = this;
+    qInstallMessageHandler(myMessageOutput);
+
 	ui.setupUi(this);
 
     ui.toolBar->setParent(ui.centralWidget);
@@ -233,6 +257,8 @@ MainWindow::MainWindow(ICaptureDevice *captureDevice)
     connect(ui.tbSniffer,       SIGNAL(clicked(bool)), this, SLOT(modeButtonPressed(bool)));
     connect(ui.tbTxMode,        SIGNAL(clicked(bool)), this, SLOT(modeButtonPressed(bool)));
     connect(ui.tbDmxView,       SIGNAL(clicked(bool)), this, SLOT(modeButtonPressed(bool)));
+    connect(ui.tbScript,        SIGNAL(clicked(bool)), this, SLOT(modeButtonPressed(bool)));
+
 
     // Packet table
     // Filtering model
@@ -313,6 +339,9 @@ MainWindow::MainWindow(ICaptureDevice *captureDevice)
 
     memset(m_scene1Levels, 0, sizeof(m_scene1Levels));
     memset(m_scene2Levels, 0, sizeof(m_scene2Levels));
+    for(int i=0; i<512; i++)
+        m_scene1Levels[i] = 0xFF & i;
+
     for(int i=0; i<FADER_COUNT; i++)
     {
         for(int scene=0; scene<2; scene++)
@@ -374,6 +403,7 @@ MainWindow::MainWindow(ICaptureDevice *captureDevice)
     btnGroup->addButton(ui.tbSniffer);
     btnGroup->addButton(ui.tbTxMode);
     btnGroup->addButton(ui.tbDmxView);
+    btnGroup->addButton(ui.tbScript);
     btnGroup->setExclusive(true);
 
     // Setup Custom PID
@@ -484,6 +514,11 @@ MainWindow::MainWindow(ICaptureDevice *captureDevice)
     }
     ui.tbSeverity->setMenu(severityMenu);
     emit updateStatusBarMsg();
+
+    // Scripting
+    m_scripting = new Scripting(m_captureDevice);
+    connect(m_scripting, SIGNAL(finished(bool)), this, SLOT(scriptFinished(bool)));
+    loadTempScript();
 }
 
 MainWindow::~MainWindow()
@@ -578,6 +613,8 @@ void MainWindow::modeButtonPressed(bool checked)
         m_mode = OPMODE_RDMCONTROL;
     if(button == ui.tbDmxView)
         m_mode = OPMODE_DMXVIEW;
+    if(button == ui.tbScript)
+        m_mode = OPMODE_SCRIPT;
 
     ui.stackedWidget->setCurrentIndex(m_mode);
 
@@ -632,6 +669,13 @@ void MainWindow::modeButtonPressed(bool checked)
             m_captureDevice->setMode(ICaptureDevice::SniffMode);
             m_captureDevice->open();
         }
+        break;
+    case OPMODE_SCRIPT: // DMX View Mode
+        ui.menuCapture->setEnabled(false);
+        ui.actionSave_File->setEnabled(false);
+        ui.actionOpen_File->setEnabled(false);
+        ui.actionExport_to_PcapNg->setEnabled(false);
+        ui.menuCapture->setEnabled(false);
         break;
     }
 
@@ -1549,4 +1593,84 @@ void MainWindow::on_tbSaveLog_pressed()
         return;
     }
     LogModel::getInstance()->saveFile(&file);
+}
+
+void MainWindow::on_btnRunScript_pressed()
+{
+    if(!m_scripting->isRunning())
+        m_scripting->run(ui.teScriptEdit->toPlainText());
+    ui.btnRunScript->setEnabled(false);
+}
+
+void MainWindow::scriptFinished(bool error)
+{
+    ui.btnRunScript->setEnabled(true);
+    if(error)
+    {
+        ui.teScriptEdit->setErrorOnLine(m_scripting->lastErrorLine()-1, m_scripting->lastErrorDescription());
+    }
+}
+
+
+void MainWindow::on_teScriptEdit_textChanged()
+{
+    if(m_scriptSaveTimer)
+    {
+        m_scriptSaveTimer->stop();
+        m_scriptSaveTimer->start(SCRIPT_SAVE_TIMEOUT);
+    }
+    else {
+        m_scriptSaveTimer = new QTimer(this);
+        connect(m_scriptSaveTimer, SIGNAL(timeout()), this, SLOT(saveTempScript()));
+        m_scriptSaveTimer->start(SCRIPT_SAVE_TIMEOUT);
+    }
+}
+
+void MainWindow::saveTempScript()
+{
+    QString location = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+
+    m_scriptSaveTimer->stop();
+    m_scriptSaveTimer->deleteLater();
+    m_scriptSaveTimer = Q_NULLPTR;
+
+    if(!QDir(location).exists())
+    {
+        QDir d;
+        d.mkpath(location);
+    }
+
+    QFile file(location+QString("/temp.js"));
+    if(file.open(QIODevice::WriteOnly))
+    {
+        file.write(ui.teScriptEdit->toPlainText().toUtf8());
+    }
+}
+
+void MainWindow::loadTempScript()
+{
+    QString location = QStandardPaths::writableLocation(QStandardPaths::AppDataLocation);
+    QFile file(location+QString("/temp.js"));
+    if(file.open(QIODevice::ReadOnly))
+    {
+        QByteArray script = file.readAll();
+        ui.teScriptEdit->setPlainText(QString::fromUtf8(script));
+    }
+}
+
+void MainWindow::jsConsoleMessage(const QMessageLogContext &context, const QString &msg)
+{
+    if(QThread::currentThread()==this->thread())
+    {
+        ui.teScriptConsole->appendPlainText(msg);
+    }
+    else {
+        QMetaObject::invokeMethod(ui.teScriptConsole, "appendPlainText", Qt::QueuedConnection, Q_ARG(QString, msg));
+    }
+}
+
+void MainWindow::on_btnSerialSetup_pressed()
+{
+    QDialog dialog;
+
 }

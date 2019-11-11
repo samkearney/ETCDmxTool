@@ -40,6 +40,9 @@ class ICaptureDevice;
 class RDMController;
 struct RdmDeviceInfo;
 class LevelIndicator;
+class Scripting;
+
+constexpr int SCRIPT_SAVE_TIMEOUT = 5000;
 
 class MainWindow : public QMainWindow
 {
@@ -73,6 +76,10 @@ public slots:
     void logSeverityToggle(bool checked);
     void on_tbSaveLog_pressed();
     void on_btnToggleDmx_toggled(bool checked);
+    void on_btnRunScript_pressed();
+    void on_teScriptEdit_textChanged();
+    void jsConsoleMessage(const QMessageLogContext &context, const QString &msg);
+    void on_btnSerialSetup_pressed();
 private slots:
     void updateFilterString(const QString &filterText);
 	void setFilterColumn(int index);
@@ -92,6 +99,10 @@ private slots:
     void composeRawCommand();
     void rawCommandComplete(quint8 response, const QByteArray &data);
 
+    // Scripting
+    void scriptFinished(bool error);
+    void saveTempScript();
+    void loadTempScript();
 private:
     Q_SIGNAL void updateStatusBarMsg();
     Q_SLOT void doUpdatetStatusBarMsg();
@@ -137,7 +148,8 @@ private:
         OPMODE_SNIFFER = 0,
         OPMODE_DMXCONTROL,
         OPMODE_RDMCONTROL,
-        OPMODE_DMXVIEW
+        OPMODE_DMXVIEW,
+        OPMODE_SCRIPT
     };
 
     Ui::MainWindowClass ui;
@@ -190,6 +202,8 @@ private:
     QComboBox *m_paramCombo;
     QSpinBox *m_subDeviceSpin;
     OperationMode m_mode = OPMODE_SNIFFER;
+    Scripting *m_scripting = Q_NULLPTR;
+    QTimer *m_scriptSaveTimer = Q_NULLPTR;
 };
 
 #endif // MAINWINDOW_H
