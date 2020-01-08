@@ -198,6 +198,7 @@ private:
     QList<QComboBox*> m_customPropCombo;
     QHash<int, QWidget*> m_customPropEdits;
     QByteArray m_customCommandParamData;
+    quint16 m_customCommandPid;
     QComboBox *m_commandCombo;
     QComboBox *m_paramCombo;
     QSpinBox *m_subDeviceSpin;
