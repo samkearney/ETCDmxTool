@@ -1292,9 +1292,16 @@ QProgressBar::chunk
                </widget>
               </item>
               <item>
+               <widget class="QPushButton" name="btnAbortScript">
+                <property name="text">
+                 <string>Abort Script</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <widget class="QPushButton" name="btnSerialSetup">
                 <property name="text">
-                 <string>Setup Serial Port</string>
+                 <string>Serial Port: Not Configured</string>
                 </property>
                </widget>
               </item>

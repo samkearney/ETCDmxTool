@@ -50,6 +50,7 @@
 #include "customdataroles.h"
 #include "levelindicator.h"
 #include "updatedialog.h"
+#include "serialdialog.h"
 
 // PcapNg Export
 #include "pcap/pcapng.h"
@@ -135,7 +136,7 @@ void myMessageOutput(QtMsgType type, const QMessageLogContext &context, const QS
         return;
     }
 
-    LogModel::getInstance()->logWithoutFilter(msg);
+    LogModel::getInstance()->log(msg, CDL_SEV_INF, 1);
 
     if(type==QtFatalMsg)
         abort();
@@ -1630,17 +1631,35 @@ void MainWindow::on_tbSaveLog_pressed()
 
 void MainWindow::on_btnRunScript_pressed()
 {
-    if(!m_scripting->isRunning())
-        m_scripting->run(ui.teScriptEdit->toPlainText());
+    if(m_captureDevice) {
+        m_captureDevice->setMode(ICaptureDevice::TransmitMode);
+        m_captureDevice->open();
+    }
+    m_scripting->run(ui.teScriptEdit->toPlainText());
     ui.btnRunScript->setEnabled(false);
+    ui.btnAbortScript->setEnabled(true);
+    jsConsoleMessage(QMessageLogContext(), tr("Script Started"));
+}
+
+void MainWindow::on_btnAbortScript_pressed()
+{
+    m_scripting->abort();
+    jsConsoleMessage(QMessageLogContext(), tr("Script Aborted"));
+    ui.btnRunScript->setEnabled(true);
+    ui.btnAbortScript->setEnabled(false);
 }
 
 void MainWindow::scriptFinished(bool error)
 {
     ui.btnRunScript->setEnabled(true);
+    ui.btnAbortScript->setEnabled(false);
     if(error)
     {
         ui.teScriptEdit->setErrorOnLine(m_scripting->lastErrorLine()-1, m_scripting->lastErrorDescription());
+
+        jsConsoleMessage(QMessageLogContext(), tr("Script Error - %1 at line %2")
+                         .arg(m_scripting->lastErrorDescription())
+                         .arg(m_scripting->lastErrorLine()));
     }
 }
 
@@ -1693,17 +1712,24 @@ void MainWindow::loadTempScript()
 
 void MainWindow::jsConsoleMessage(const QMessageLogContext &context, const QString &msg)
 {
+    QString stamped = QDateTime::currentDateTime().toString("HH:mm:ss") + QString(" ") + msg;
     if(QThread::currentThread()==this->thread())
     {
-        ui.teScriptConsole->appendPlainText(msg);
+        ui.teScriptConsole->appendPlainText(stamped);
     }
     else {
-        QMetaObject::invokeMethod(ui.teScriptConsole, "appendPlainText", Qt::QueuedConnection, Q_ARG(QString, msg));
+        QMetaObject::invokeMethod(ui.teScriptConsole, "appendPlainText", Qt::QueuedConnection, Q_ARG(QString, stamped));
     }
 }
 
 void MainWindow::on_btnSerialSetup_pressed()
 {
-    QDialog dialog;
+    SerialDialog dialog;
+    if(dialog.exec() != QDialog::Accepted) return;
 
+    m_scripting->setSerialPort(dialog.portName(), dialog.baud(), dialog.dataBits(), dialog.parity(), dialog.stopBits(), dialog.flowControl());
+
+    ui.btnSerialSetup->setText(tr("Serial Port: %1 (%2 baud)")
+                               .arg(dialog.portName())
+                               .arg(dialog.baud()));
 }

@@ -22,7 +22,7 @@
 
 TEMPLATE = app
 TARGET = EtcDmxTool
-QT += core gui qml
+QT += core gui qml serialport
 
 # Extract version from Git tag/description
 GIT_COMMAND = git --git-dir $$shell_quote($$PWD/.git) --work-tree $$shell_quote($$PWD)
@@ -57,6 +57,7 @@ HEADERS += src/e110_startcodes.h \
     src/pcap/pcapng.h \
     src/pcap/pcapngLinkTypes.h \
     src/scripting.h \
+    src/serialdialog.h \
     src/util.h \
     src/hexlineedit.h \
     src/selectdevicedialog.h \
@@ -81,6 +82,7 @@ SOURCES += src/main.cpp \
     src/fancysliderstyle.cpp \
     src/pcap/pcapng.cpp \
     src/scripting.cpp \
+    src/serialdialog.cpp \
     src/util.cpp \
     src/selectdevicedialog.cpp \
     src/hexlineedit.cpp \
@@ -94,7 +96,8 @@ SOURCES += src/main.cpp \
     src/file.cpp
 
 FORMS += ui/mainwindow.ui \
-    ui/selectdevicedialog.ui
+    ui/selectdevicedialog.ui \
+    ui/serialdialog.ui
 
 RESOURCES += res/resources.qrc
 
@@ -120,7 +123,7 @@ PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${FTD2xx_DLL_SRC} $${FTD2xx_DLL_DST} $$escap
 PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${GADGET_DLL_SRC} $${GADGET_DLL_DST} $$escape_expand(\\n\\t)
 PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${DISSECTOR_DLL_SRC} $${DISSECTOR_DLL_DST} $$escape_expand(\\n\\t)
 PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${DEPLOY_TARGET} $${DEPLOY_DIR} $$escape_expand(\\n\\t)
-DEPLOY_COMMAND = windeployqt
+DEPLOY_COMMAND = $$(QTDIR)/bin/windeployqt
 DEPLOY_OPT = --dir $${DEPLOY_DIR}
 DEPLOY_INSTALLER = makensis /DPRODUCT_VERSION="$${GIT_TAG}" $$shell_quote($$system_path($${_PRO_FILE_PWD_}/install/install.nsi))
 

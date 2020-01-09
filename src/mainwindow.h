@@ -77,6 +77,7 @@ public slots:
     void on_tbSaveLog_pressed();
     void on_btnToggleDmx_toggled(bool checked);
     void on_btnRunScript_pressed();
+    void on_btnAbortScript_pressed();
     void on_teScriptEdit_textChanged();
     void jsConsoleMessage(const QMessageLogContext &context, const QString &msg);
     void on_btnSerialSetup_pressed();
