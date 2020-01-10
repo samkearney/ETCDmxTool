@@ -123,7 +123,7 @@ PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${FTD2xx_DLL_SRC} $${FTD2xx_DLL_DST} $$escap
 PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${GADGET_DLL_SRC} $${GADGET_DLL_DST} $$escape_expand(\\n\\t)
 PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${DISSECTOR_DLL_SRC} $${DISSECTOR_DLL_DST} $$escape_expand(\\n\\t)
 PRE_DEPLOY_COMMAND += $$QMAKE_COPY $${DEPLOY_TARGET} $${DEPLOY_DIR} $$escape_expand(\\n\\t)
-DEPLOY_COMMAND = $$(QTDIR)/bin/windeployqt
+DEPLOY_COMMAND = $$(QTDIR)\\bin\\windeployqt
 DEPLOY_OPT = --dir $${DEPLOY_DIR}
 DEPLOY_INSTALLER = makensis /DPRODUCT_VERSION="$${GIT_TAG}" $$shell_quote($$system_path($${_PRO_FILE_PWD_}/install/install.nsi))
 
