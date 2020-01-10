@@ -42,7 +42,7 @@ install:
 
   # QT Paths
   # https://www.appveyor.com/docs/build-environment/#qt
-  - set QTDIR=C:\Qt\%QT_Ver%\msvc2019
+  - set QTDIR=C:\Qt\%QT_Ver%\msvc2017
   - set PATH=%PATH%;%QTDIR%\bin
 
   # NSIS Paths
