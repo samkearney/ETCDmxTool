@@ -674,8 +674,8 @@ void MainWindow::modeButtonPressed(bool checked)
         break;
     case OPMODE_SCRIPT: // DMX View Mode
         ui.menuCapture->setEnabled(false);
-        ui.actionSave_File->setEnabled(false);
-        ui.actionOpen_File->setEnabled(false);
+        ui.actionSave_File->setEnabled(true);
+        ui.actionOpen_File->setEnabled(true);
         ui.actionExport_to_PcapNg->setEnabled(false);
         ui.menuCapture->setEnabled(false);
         break;
@@ -779,59 +779,96 @@ void MainWindow::updateTreeWidget(int currentRow)
 
 void MainWindow::on_actionSave_File_triggered()
 {
-	QString filename = QFileDialog::getSaveFileName(this, "Enter Filename", QString(), "Text Files (*.txt)");
-	if(filename.isEmpty()) return;
+    if(m_mode==MainWindow::OPMODE_SNIFFER)
+    {
+        QString filename = QFileDialog::getSaveFileName(this, "Enter Filename", QString(), "Text Files (*.txt)");
+        if(filename.isEmpty()) return;
 
-    FileSave *f = new FileSave(m_packetTable, filename);
-    QThread *fileSaveThread = new QThread(this);
-    f->moveToThread(fileSaveThread);
-    fileSaveThread->start();
-    connect(fileSaveThread, &QThread::finished, fileSaveThread, &QObject::deleteLater);
-    connect(f, SIGNAL(Finished()), fileSaveThread, SLOT(quit()),        Qt::DirectConnection);
+        FileSave *f = new FileSave(m_packetTable, filename);
+        QThread *fileSaveThread = new QThread(this);
+        f->moveToThread(fileSaveThread);
+        fileSaveThread->start();
+        connect(fileSaveThread, &QThread::finished, fileSaveThread, &QObject::deleteLater);
+        connect(f, SIGNAL(Finished()), fileSaveThread, SLOT(quit()),        Qt::DirectConnection);
 
-    // Needs to be queued so the action happens in the GUI thread
-    connect(f, &FileSave::Started, this, [=]() {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-    }, Qt::QueuedConnection);
-    connect(f, &FileSave::Finished, this, [=]() {
-        QApplication::restoreOverrideCursor();
-        f->deleteLater();
-    }, Qt::QueuedConnection);
+        // Needs to be queued so the action happens in the GUI thread
+        connect(f, &FileSave::Started, this, [=]() {
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+        }, Qt::QueuedConnection);
+        connect(f, &FileSave::Finished, this, [=]() {
+            QApplication::restoreOverrideCursor();
+            f->deleteLater();
+        }, Qt::QueuedConnection);
 
-    QMetaObject::invokeMethod(f, "doSave", Qt::QueuedConnection);
+        QMetaObject::invokeMethod(f, "doSave", Qt::QueuedConnection);
+    }
+
+    if(m_mode==MainWindow::OPMODE_SCRIPT)
+    {
+        QString filename =  QFileDialog::getSaveFileName(this, "Save Script", QString(), "JavaScript Files (*.js)");
+        if(filename.isEmpty()) return;
+
+        QFile file(filename);
+        if(!file.open(QIODevice::WriteOnly))
+        {
+            QMessageBox::warning(this, tr("Could not save script"), tr("Unable to open file"));
+            return;
+        }
+
+        file.write(ui.teScriptEdit->toPlainText().toUtf8());
+        file.close();
+    }
 }
 
 void MainWindow::on_actionOpen_File_triggered()
 {
-	QString filename = QFileDialog::getOpenFileName(this, "Open File", QString(), "Text Files (*.txt)");
-	if(filename.isEmpty()) return;
+    if(m_mode==MainWindow::OPMODE_SNIFFER)
+    {
+        QString filename = QFileDialog::getOpenFileName(this, "Open File", QString(), "Text Files (*.txt)");
+        if(filename.isEmpty()) return;
 
-    // Stop any capture and Clear old
-    stopCapture();
-    m_packetTable.clearAll();
-    ui.treeWidget->clear();
-    ui.textEdit->clear();
+        // Stop any capture and Clear old
+        stopCapture();
+        m_packetTable.clearAll();
+        ui.treeWidget->clear();
+        ui.textEdit->clear();
 
-    FileOpen *f = new FileOpen(m_packetTable, filename);
-    QThread *fileOpenThread = new QThread(this);
-    f->moveToThread(fileOpenThread);
-    fileOpenThread->start();
-    connect(fileOpenThread, &QThread::finished, fileOpenThread, &QObject::deleteLater);
-    connect(f, SIGNAL(Finished()), fileOpenThread, SLOT(quit()), Qt::DirectConnection);
+        FileOpen *f = new FileOpen(m_packetTable, filename);
+        QThread *fileOpenThread = new QThread(this);
+        f->moveToThread(fileOpenThread);
+        fileOpenThread->start();
+        connect(fileOpenThread, &QThread::finished, fileOpenThread, &QObject::deleteLater);
+        connect(f, SIGNAL(Finished()), fileOpenThread, SLOT(quit()), Qt::DirectConnection);
 
-    // Needs to be queued so the action happens in the GUI thread
-    connect(f, &FileOpen::Started, this, [=]() {
-        QApplication::setOverrideCursor(Qt::WaitCursor);
-    }, Qt::QueuedConnection);
-    connect(f, &FileOpen::Finished, this, [=]() {
-        QApplication::restoreOverrideCursor();
-        if (ui.tableView->model()->rowCount())
-            ui.tableView->setCurrentIndex(ui.tableView->model()->index(0, 0));
-        f->deleteLater();
-    }, Qt::QueuedConnection);
+        // Needs to be queued so the action happens in the GUI thread
+        connect(f, &FileOpen::Started, this, [=]() {
+            QApplication::setOverrideCursor(Qt::WaitCursor);
+        }, Qt::QueuedConnection);
+        connect(f, &FileOpen::Finished, this, [=]() {
+            QApplication::restoreOverrideCursor();
+            if (ui.tableView->model()->rowCount())
+                ui.tableView->setCurrentIndex(ui.tableView->model()->index(0, 0));
+            f->deleteLater();
+        }, Qt::QueuedConnection);
 
 
-    QMetaObject::invokeMethod(f, "doRead", Qt::QueuedConnection);
+        QMetaObject::invokeMethod(f, "doRead", Qt::QueuedConnection);
+    }
+    if(m_mode==MainWindow::OPMODE_SCRIPT)
+    {
+        QString filename = QFileDialog::getOpenFileName(this, "Open Script", QString(), "JavaScript Files (*.js)");
+        if(filename.isEmpty()) return;
+
+        QFile file(filename);
+        if(!file.open(QIODevice::ReadOnly))
+        {
+            QMessageBox::warning(this, tr("Could not open script"), tr("Unable to open file"));
+            return;
+        }
+
+        ui.teScriptEdit->clear();
+        ui.teScriptEdit->setPlainText(QString::fromUtf8(file.readAll()));
+    }
 }
 
 #define INDEXCOL_WIDTH 6
