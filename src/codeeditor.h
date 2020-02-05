@@ -23,6 +23,8 @@ public:
 
     void lineNumberAreaPaintEvent(QPaintEvent *event);
     int lineNumberAreaWidth();
+public slots:
+    void clearErrors();
     void setErrorOnLine(int line, const QString &error);
 protected:
     void resizeEvent(QResizeEvent *event) override;

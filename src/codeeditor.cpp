@@ -88,6 +88,11 @@ void CodeEditor::setErrorOnLine(int line, const QString &error)
     setExtraSelections(extraSelections);
 }
 
+void CodeEditor::clearErrors()
+{
+    setExtraSelections(QList<QTextEdit::ExtraSelection>());
+}
+
 void CodeEditor::lineNumberAreaPaintEvent(QPaintEvent *event)
 {
     QPainter painter(lineNumberArea);
