@@ -7,6 +7,19 @@
 #include <QtSerialPort/QSerialPort>
 #include "capturedevice.h"
 
+
+class ScriptUtils : public QObject
+{
+    Q_OBJECT
+public:
+    ScriptUtils();
+
+    Q_INVOKABLE const QString timestamp();
+public slots:
+    void sleep(int milliseconds);
+};
+
+
 /** ScriptSerial provides a serial port wrapper accessible from the script engine */
 /* NB this has to run its own thread for serial port access */
 class ScriptSerial : public QObject
@@ -31,6 +44,23 @@ private:
     QMutex m_bufferMutex;
 };
 
+
+/* NB this has to run its own thread for file access */
+class ScriptFile : public QObject
+{
+    Q_OBJECT
+public:
+    ScriptFile(const QString &filename);
+    ~ScriptFile();
+public slots:
+    void write(const QString &text);
+private slots:
+    void open();
+private:
+    QFile *m_file;
+    QThread *m_fileThread;
+};
+
 /* ScriptDMX provides acecess to output DMX levels from within the scripts */
 class ScriptDMX : public QObject
 {
@@ -39,7 +69,6 @@ public:
     ScriptDMX(ICaptureDevice *device);
 public slots:
     void setLevel(quint16 address, quint8 value);
-    void sleep(int seconds);
     void enable();
     void disable();
 private:
@@ -58,7 +87,7 @@ public:
                        QSerialPort::Parity parity, QSerialPort::StopBits stopBits, QSerialPort::FlowControl flowControl
                        );
 signals:
-    void finished(bool error);
+    void finished(bool error, bool interrupted);
 public slots:
     bool isRunning();
     void run(const QString &script);
@@ -81,6 +110,7 @@ private:
     QSerialPort::StopBits m_stopBits;
     QSerialPort::FlowControl m_flowControl;
 
+    QString m_filename;
 
 };
 

@@ -1,6 +1,25 @@
 #include "scripting.h"
 #include <QDebug>
 #include <QMutexLocker>
+#include <QDateTime>
+
+/************************************************ ScriptUtils ************************************************/
+
+ScriptUtils::ScriptUtils()
+{
+
+}
+
+const QString ScriptUtils::timestamp()
+{
+    return QDateTime::currentDateTime().toString();
+}
+
+void ScriptUtils::sleep(int milliseconds)
+{
+    QThread::msleep(milliseconds);
+}
+
 
 /************************************************ ScriptSerial ************************************************/
 ScriptSerial::ScriptSerial(QString name, QSerialPort::BaudRate baud, QSerialPort::DataBits dataBits,
@@ -71,6 +90,42 @@ void ScriptSerial::writeText(const QString &text)
 }
 
 
+/************************************************ ScriptFile ************************************************/
+ScriptFile::ScriptFile(const QString &filename)
+
+{
+    m_fileThread = new QThread();
+    m_fileThread->setObjectName("FileThread");
+    this->moveToThread(m_fileThread);
+
+    m_file = new QFile();
+
+    connect(m_fileThread, SIGNAL(started()), this, SLOT(open()), Qt::QueuedConnection);
+
+    m_fileThread->start();
+}
+
+ScriptFile::~ScriptFile()
+{
+    m_fileThread->exit();
+    m_fileThread->wait();
+    delete m_fileThread;
+    delete m_fileThread;
+}
+
+void ScriptFile::open()
+{
+    m_file->open(QIODevice::WriteOnly);
+}
+
+void ScriptFile::write(const QString &text)
+{
+    if(QThread::currentThread()==this->thread())
+        m_file->write(text.toLatin1());
+    else
+        QMetaObject::invokeMethod(this, "write", Qt::QueuedConnection, Q_ARG(QString, text));
+}
+
 /************************************************ ScriptDMX ************************************************/
 ScriptDMX::ScriptDMX(ICaptureDevice *device) : QObject(Q_NULLPTR), m_captureDevice(device)
 {
@@ -79,17 +134,11 @@ ScriptDMX::ScriptDMX(ICaptureDevice *device) : QObject(Q_NULLPTR), m_captureDevi
 
 void ScriptDMX::setLevel(quint16 address, quint8 value)
 {
-    qDebug() << "Setting DMX" << address << "to" << value;
+    if(address>511) return;
     m_dmxLevels[address] = value;
     if(m_captureDevice)
         m_captureDevice->setDmxLevels(m_dmxLevels, 512);
 }
-
-void ScriptDMX::sleep(int seconds)
-{
-    QThread::msleep(seconds);
-}
-
 
 void ScriptDMX::enable()
 {
@@ -140,6 +189,9 @@ void Scripting::run(const QString &script)
     QJSValue dmxValue = m_engine.newQObject(m_dmx);
     m_engine.globalObject().setProperty("dmx", dmxValue);
 
+    ScriptUtils *scriptUtils = new ScriptUtils();
+    QJSValue utilsValue = m_engine.newQObject(scriptUtils);
+    m_engine.globalObject().setProperty("utils", utilsValue);
 
     ScriptSerial *serial = Q_NULLPTR;
     if(!m_name.isEmpty())
@@ -149,12 +201,24 @@ void Scripting::run(const QString &script)
         m_engine.globalObject().setProperty("serial", serialValue);
     }
 
+
+    ScriptFile *file = Q_NULLPTR;
+    if(!m_filename.isEmpty())
+    {
+        file = new ScriptFile(m_filename);
+        QJSValue fileValue = m_engine.newQObject(file);
+        m_engine.globalObject().setProperty("file", fileValue);
+    }
+
     m_running = true;
     QJSValue value = m_engine.evaluate(script);
     m_running = false;
 
     if(serial)
         delete serial;
+    if(file)
+        delete file;
+    delete scriptUtils;
 
 
     if(value.isError())
@@ -163,7 +227,7 @@ void Scripting::run(const QString &script)
         m_lastErrorLine = value.property("lineNumber").toInt();
     }
 
-    emit finished(value.isError());
+    emit finished(value.isError(), m_engine.isInterrupted());
 }
 
 void Scripting::setSerialPort(QString name, QSerialPort::BaudRate baud, QSerialPort::DataBits dataBits,
