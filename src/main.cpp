@@ -31,7 +31,7 @@
 
 void messageHandler(QtMsgType type, const QMessageLogContext &context, const QString &msg)
 {
-    Q_UNUSED(context);
+    Q_UNUSED(context)
     quint32 severity = CDL_SEV_UKN;
     switch (type) {
         case QtDebugMsg: severity = CDL_SEV_INF; break;
