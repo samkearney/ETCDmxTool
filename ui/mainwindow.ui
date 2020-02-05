@@ -1306,6 +1306,13 @@ QProgressBar::chunk
                </widget>
               </item>
               <item>
+               <widget class="QPushButton" name="btnScriptFile">
+                <property name="text">
+                 <string>File: Not Configured</string>
+                </property>
+               </widget>
+              </item>
+              <item>
                <spacer name="horizontalSpacer_7">
                 <property name="orientation">
                  <enum>Qt::Horizontal</enum>
