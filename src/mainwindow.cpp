@@ -519,7 +519,7 @@ MainWindow::MainWindow(ICaptureDevice *captureDevice)
 
     // Scripting
     m_scripting = new Scripting(m_captureDevice);
-    connect(m_scripting, SIGNAL(finished(bool)), this, SLOT(scriptFinished(bool)));
+    connect(m_scripting, SIGNAL(finished(bool, bool)), this, SLOT(scriptFinished(bool, bool)));
     loadTempScript();
 }
 
@@ -1676,6 +1676,7 @@ void MainWindow::on_btnRunScript_pressed()
     ui.btnRunScript->setEnabled(false);
     ui.btnAbortScript->setEnabled(true);
     jsConsoleMessage(QMessageLogContext(), tr("Script Started"));
+    ui.teScriptEdit->clearErrors();
 }
 
 void MainWindow::on_btnAbortScript_pressed()
@@ -1686,11 +1687,11 @@ void MainWindow::on_btnAbortScript_pressed()
     ui.btnAbortScript->setEnabled(false);
 }
 
-void MainWindow::scriptFinished(bool error)
+void MainWindow::scriptFinished(bool error, bool interrupted)
 {
     ui.btnRunScript->setEnabled(true);
     ui.btnAbortScript->setEnabled(false);
-    if(error)
+    if(error && !interrupted)
     {
         ui.teScriptEdit->setErrorOnLine(m_scripting->lastErrorLine()-1, m_scripting->lastErrorDescription());
 

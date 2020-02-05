@@ -101,7 +101,7 @@ private slots:
     void rawCommandComplete(quint8 response, const QByteArray &data);
 
     // Scripting
-    void scriptFinished(bool error);
+    void scriptFinished(bool error, bool interrupted);
     void saveTempScript();
     void loadTempScript();
 private:
