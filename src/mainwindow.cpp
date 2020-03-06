@@ -60,7 +60,7 @@
 #include "rdm/rdmcontroller.h"
 #include "rdm/estardm.h"
 #include "rdm/rdmpidstrings.h"
-#include "etc_include/RDM_CmdC.h"
+#include "RDM_CmdC.h"
 #include "GadgetDLL.h"
 
 // Logging

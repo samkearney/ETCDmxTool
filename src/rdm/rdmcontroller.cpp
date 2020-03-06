@@ -19,8 +19,8 @@
 // THE SOFTWARE.
 
 #include "rdmcontroller.h"
-#include "etc_include/RdmDeviceInfo.h"
-#include "etc_include/RDM_CmdC.h"
+#include "RdmDeviceInfo.h"
+#include "RDM_CmdC.h"
 #include "GadgetDLL.h"
 #include "rdm/estardm.h"
 #include "util.h"
